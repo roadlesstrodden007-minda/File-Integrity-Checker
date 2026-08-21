@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>File Integrity Checker</title>
+<style>
+  :root{
+    --bg:#0f1417;
+    --panel:#161d22;
+    --panel-hi:#1d262c;
+    --line:#28333a;
+    --text:#dbe4e9;
+    --dim:#7c8b93;
+    --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+    --ok:#4fb477;
+    --bad:#d9695f;
+    --accent:#5aa9c9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    display:flex; justify-content:center; padding:32px 16px;
+  }
+  .wrap{width:100%; max-width:640px;}
+  h1{font-size:1.3rem; font-weight:600; margin:0 0 2px;}
+  .sub{color:var(--dim); font-size:0.88rem; margin:0 0 24px;}
+
+  /* ---- lock screen ---- */
+  .lockbox{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:28px 24px; max-width:420px; margin:40px auto 0;
+  }
+  .lockbox h2{font-size:1rem; margin:0 0 6px;}
+  .lockbox p{color:var(--dim); font-size:0.83rem; margin:0 0 18px; line-height:1.5;}
+  .lockbox input{
+    width:100%; background:#0b1013; border:1px solid var(--line); color:var(--text);
+    border-radius:7px; padding:10px 12px; font-size:0.88rem; margin-bottom:10px;
+  }
+  .lockbox input:focus{ outline:none; border-color:var(--accent); }
+  .lockbox button{
+    width:100%; background:var(--accent); color:#0b1013; border:none; border-radius:7px;
+    padding:10px; font-size:0.88rem; font-weight:600; cursor:pointer; margin-top:4px;
+  }
+  .err{color:var(--bad); font-size:0.8rem; margin-top:8px; min-height:1em;}
+  .switch{color:var(--dim); font-size:0.78rem; margin-top:14px; text-align:center;}
+  .switch a{color:var(--accent); cursor:pointer; text-decoration:none;}
+
+  /* ---- top bar ---- */
+  .topbar{display:flex; justify-content:flex-end; gap:8px; margin-bottom:6px;}
+  .topbar button{
+    background:none; border:1px solid var(--line); color:var(--dim);
+    border-radius:6px; padding:5px 10px; font-size:0.76rem; cursor:pointer;
+  }
+  .topbar button:hover{ color:var(--text); border-color:var(--accent); }
+
+  .drop{
+    border:2px dashed var(--line); border-radius:10px; padding:36px 20px;
+    text-align:center; cursor:pointer; transition:.15s; background:var(--panel);
+  }
+  .drop.hover{ border-color:var(--accent); background:var(--panel-hi); }
+  .drop p{margin:6px 0; color:var(--dim); font-size:0.85rem;}
+  .drop strong{color:var(--text); font-size:0.98rem;}
+  input[type=file]{display:none;}
+
+  .result{
+    margin-top:20px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:18px 20px; display:none;
+  }
+  .result.show{display:block;}
+  .fname{font-weight:600; word-break:break-all; margin-bottom:2px;}
+  .fmeta{color:var(--dim); font-size:0.8rem; margin-bottom:14px;}
+  .algo-row{display:flex; gap:8px; margin-bottom:10px;}
+  .algo-row button{
+    background:none; border:1px solid var(--line); color:var(--dim);
+    border-radius:6px; padding:4px 10px; font-size:0.78rem; cursor:pointer;
+  }
+  .algo-row button.active{ border-color:var(--accent); color:var(--accent); }
+  .hash{
+    font-family:var(--mono); font-size:0.82rem; background:#0b1013;
+    border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    word-break:break-all; color:#a9dcef;
+  }
+  .actions{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
+  button.act{
+    background:var(--accent); color:#0b1013; border:none; border-radius:7px;
+    padding:9px 14px; font-size:0.85rem; font-weight:600; cursor:pointer;
+  }
+  button.act.secondary{ background:transparent; color:var(--text); border:1px solid var(--line); font-weight:500;}
+  button.act:active{ transform:translateY(1px); }
+
+  .banner{
+    margin-top:14px; padding:10px 14px; border-radius:8px; font-size:0.85rem; display:none;
+  }
+  .banner.show{display:block;}
+  .banner.ok{ background:rgba(79,180,119,0.12); color:var(--ok); border:1px solid rgba(79,180,119,0.35); }
+  .banner.bad{ background:rgba(217,105,95,0.12); color:var(--bad); border:1px solid rgba(217,105,95,0.35); }
+
+  .baselines{margin-top:32px;}
+  .baselines h2{font-size:0.95rem; color:var(--dim); font-weight:600; margin:0 0 10px; text-transform:uppercase; letter-spacing:.04em;}
+  .b-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    padding:10px 14px; margin-bottom:8px;
+  }
+  .b-item .b-name{font-size:0.85rem; word-break:break-all;}
+  .b-item .b-date{color:var(--dim); font-size:0.72rem; margin-top:2px;}
+  .b-item button{
+    background:none; border:none; color:var(--dim); cursor:pointer; font-size:0.78rem;
+  }
+  .b-item button:hover{ color:var(--bad); }
+  .empty{color:var(--dim); font-size:0.82rem;}
+  .lockstate{color:var(--dim); font-size:0.72rem; margin-top:4px;}
+  #app{display:none;}
+  .footer{
+    margin-top:36px; padding-top:16px; border-top:1px solid var(--line);
+    color:var(--dim); font-size:0.75rem; text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>File Integrity Checker</h1>
+  <p class="sub">Hashes are computed locally. Saved records are encrypted with your password before they touch disk — nothing is ever readable in plain text.</p>
+
+  <!-- ============ LOCK SCREEN ============ -->
+  <div id="lockScreen">
+    <div class="lockbox" id="lockbox"></div>
+  </div>
+
+  <!-- ============ MAIN APP ============ -->
+  <div id="app">
+    <div class="topbar">
+      <button id="exportBtn">Export encrypted backup</button>
+      <button id="importBtn">Import backup</button>
+      <input type="file" id="importFile" accept=".json" style="display:none;">
+      <button id="lockBtn">Lock vault</button>
+    </div>
+
+    <div class="drop" id="drop">
+      <p><strong>Drop a file here, or click to choose one</strong></p>
+      <p>SHA-256 by default</p>
+      <input type="file" id="fileInput">
+    </div>
+
+    <div class="result" id="result">
+      <div class="fname" id="fname"></div>
+      <div class="fmeta" id="fmeta"></div>
+      <div class="algo-row">
+        <button data-algo="SHA-256" class="active">SHA-256</button>
+        <button data-algo="SHA-1">SHA-1</button>
+        <button data-algo="SHA-512">SHA-512</button>
+      </div>
+      <div class="hash" id="hashOut">computing…</div>
+      <div class="banner" id="banner"></div>
+      <div class="actions">
+        <button class="act" id="saveBtn">Save as baseline (encrypted)</button>
+        <button class="act secondary" id="copyBtn">Copy hash</button>
+      </div>
+    </div>
+
+    <div class="baselines">
+      <h2>Saved baselines</h2>
+      <div id="baselineList"></div>
+    </div>
+
+    <div class="footer">Built by Roadlesstrodden</div>
+  </div>
+</div>
+
+<script>
+/* ===================== crypto helpers ===================== */
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function b64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function unb64(str){ return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
+
+async function deriveKey(password, saltBytes, iterations){
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt:saltBytes, iterations, hash:'SHA-256' },
+    baseKey,
+    { name:'AES-GCM', length:256 },
+    false,
+    ['encrypt','decrypt']
+  );
+}
+
+async function encryptJSON(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(JSON.stringify(obj)));
+  return { iv: b64(iv), data: b64(data) };
+}
+
+async function decryptJSON(key, ivB64, dataB64){
+  const plain = await crypto.subtle.decrypt(
+    {name:'AES-GCM', iv: unb64(ivB64)}, key, unb64(dataB64)
+  );
+  return JSON.parse(dec.decode(plain));
+}
+
+/* ===================== vault state ===================== */
+const VAULT_KEY = 'fileHashVaultV1';
+const ITERATIONS = 250000;
+
+let sessionKey = null;   // in-memory AES key, cleared on lock/reload
+let baselines = [];      // decrypted in memory only while unlocked
+
+function readVaultRecord(){
+  const raw = localStorage.getItem(VAULT_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+function writeVaultRecord(rec){
+  localStorage.setItem(VAULT_KEY, JSON.stringify(rec));
+}
+
+async function persistBaselines(){
+  const rec = readVaultRecord();
+  const enc2 = await encryptJSON(sessionKey, baselines);
+  writeVaultRecord({ salt: rec.salt, iterations: rec.iterations, iv: enc2.iv, data: enc2.data });
+}
+
+/* ===================== lock screen UI ===================== */
+const lockbox = document.getElementById('lockbox');
+const lockScreen = document.getElementById('lockScreen');
+const appEl = document.getElementById('app');
+
+function showApp(){
+  lockScreen.style.display = 'none';
+  appEl.style.display = 'block';
+  renderBaselines();
+}
+
+function renderCreateForm(){
+  lockbox.innerHTML = `
+    <h2>Create a vault password</h2>
+    <p>This password encrypts every hash you save. It's never stored anywhere — if you forget it, saved baselines can't be recovered. Choose one you'll remember.</p>
+    <input type="password" id="pw1" placeholder="New password">
+    <input type="password" id="pw2" placeholder="Confirm password">
+    <button id="createBtn">Create encrypted vault</button>
+    <div class="err" id="lockErr"></div>
+  `;
+  document.getElementById('createBtn').addEventListener('click', async () => {
+    const pw1 = document.getElementById('pw1').value;
+    const pw2 = document.getElementById('pw2').value;
+    const errEl = document.getElementById('lockErr');
+    if(pw1.length < 6){ errEl.textContent = 'Use at least 6 characters.'; return; }
+    if(pw1 !== pw2){ errEl.textContent = 'Passwords do not match.'; return; }
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    sessionKey = await deriveKey(pw1, salt, ITERATIONS);
+    baselines = [];
+    const encRes = await encryptJSON(sessionKey, baselines);
+    writeVaultRecord({ salt: b64(salt), iterations: ITERATIONS, iv: encRes.iv, data: encRes.data });
+    showApp();
+  });
+}
+
+function renderUnlockForm(){
+  lockbox.innerHTML = `
+    <h2>Unlock your vault</h2>
+    <p>Enter your password to decrypt and view saved baselines.</p>
+    <input type="password" id="pwUnlock" placeholder="Password">
+    <button id="unlockBtn">Unlock</button>
+    <div class="err" id="lockErr"></div>
+    <div class="switch"><a id="resetLink">Start a new vault instead (erases current one)</a></div>
+  `;
+  const tryUnlock = async () => {
+    const pw = document.getElementById('pwUnlock').value;
+    const errEl = document.getElementById('lockErr');
+    const rec = readVaultRecord();
+    try{
+      const key = await deriveKey(pw, unb64(rec.salt), rec.iterations);
+      const data = await decryptJSON(key, rec.iv, rec.data);
+      sessionKey = key;
+      baselines = data;
+      showApp();
+    }catch(e){
+      errEl.textContent = 'Incorrect password.';
+    }
+  };
+  document.getElementById('unlockBtn').addEventListener('click', tryUnlock);
+  document.getElementById('pwUnlock').addEventListener('keydown', e => { if(e.key==='Enter') tryUnlock(); });
+  document.getElementById('resetLink').addEventListener('click', () => {
+    if(confirm('This permanently deletes all saved baselines on this device. Continue?')){
+      localStorage.removeItem(VAULT_KEY);
+      renderCreateForm();
+    }
+  });
+}
+
+function initLockScreen(){
+  const rec = readVaultRecord();
+  if(rec) renderUnlockForm();
+  else renderCreateForm();
+}
+initLockScreen();
+
+/* ===================== main app ===================== */
+const dropEl = document.getElementById('drop');
+const inputEl = document.getElementById('fileInput');
+const resultEl = document.getElementById('result');
+const fnameEl = document.getElementById('fname');
+const fmetaEl = document.getElementById('fmeta');
+const hashOut = document.getElementById('hashOut');
+const bannerEl = document.getElementById('banner');
+const saveBtn = document.getElementById('saveBtn');
+const copyBtn = document.getElementById('copyBtn');
+const algoButtons = document.querySelectorAll('.algo-row button');
+const baselineListEl = document.getElementById('baselineList');
+
+let currentFile = null;
+let currentAlgo = 'SHA-256';
+let currentHash = '';
+
+async function hashFile(file, algo){
+  const buf = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest(algo, buf);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function fmtSize(bytes){
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
+}
+
+async function handleFile(file){
+  currentFile = file;
+  fnameEl.textContent = file.name;
+  fmetaEl.textContent = fmtSize(file.size) + ' · last modified ' + new Date(file.lastModified).toLocaleString();
+  resultEl.classList.add('show');
+  bannerEl.className = 'banner';
+  hashOut.textContent = 'computing…';
+  await computeAndDisplay();
+}
+
+async function computeAndDisplay(){
+  if(!currentFile) return;
+  hashOut.textContent = 'computing…';
+  currentHash = await hashFile(currentFile, currentAlgo);
+  hashOut.textContent = currentHash;
+
+  const match = baselines.find(b => b.name === currentFile.name && b.algo === currentAlgo);
+  if(match){
+    if(match.hash === currentHash){
+      bannerEl.textContent = '✓ Matches saved baseline from ' + new Date(match.savedAt).toLocaleString() + ' — file is unchanged.';
+      bannerEl.className = 'banner ok show';
+    } else {
+      bannerEl.textContent = '✗ Does NOT match saved baseline from ' + new Date(match.savedAt).toLocaleString() + ' — file has changed.';
+      bannerEl.className = 'banner bad show';
+    }
+  } else {
+    bannerEl.className = 'banner';
+  }
+}
+
+algoButtons.forEach(btn => {
+  btn.addEventListener('click', async () => {
+    algoButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentAlgo = btn.dataset.algo;
+    await computeAndDisplay();
+  });
+});
+
+dropEl.addEventListener('click', () => inputEl.click());
+inputEl.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+['dragenter','dragover'].forEach(evt => dropEl.addEventListener(evt, e => { e.preventDefault(); dropEl.classList.add('hover'); }));
+['dragleave','drop'].forEach(evt => dropEl.addEventListener(evt, e => { e.preventDefault(); dropEl.classList.remove('hover'); }));
+dropEl.addEventListener('drop', e => { const file = e.dataTransfer.files[0]; if(file) handleFile(file); });
+
+saveBtn.addEventListener('click', async () => {
+  if(!currentFile || !currentHash) return;
+  baselines = baselines.filter(b => !(b.name === currentFile.name && b.algo === currentAlgo));
+  baselines.push({
+    name: currentFile.name,
+    size: currentFile.size,
+    algo: currentAlgo,
+    hash: currentHash,
+    savedAt: Date.now()
+  });
+  await persistBaselines();
+  renderBaselines();
+  bannerEl.textContent = 'Baseline saved and encrypted for "' + currentFile.name + '" (' + currentAlgo + ').';
+  bannerEl.className = 'banner ok show';
+});
+
+copyBtn.addEventListener('click', () => {
+  if(!currentHash) return;
+  navigator.clipboard.writeText(currentHash);
+  copyBtn.textContent = 'Copied';
+  setTimeout(() => copyBtn.textContent = 'Copy hash', 1200);
+});
+
+function renderBaselines(){
+  const sorted = [...baselines].sort((a,b) => b.savedAt - a.savedAt);
+  if(sorted.length === 0){
+    baselineListEl.innerHTML = '<div class="empty">No baselines saved yet. Hash a file above, then click "Save as baseline".</div>';
+    return;
+  }
+  baselineListEl.innerHTML = '';
+  sorted.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'b-item';
+    row.innerHTML = `
+      <div>
+        <div class="b-name">${b.name} <span style="color:var(--dim)">(${b.algo})</span></div>
+        <div class="b-date">saved ${new Date(b.savedAt).toLocaleString()} · ${fmtSize(b.size)}</div>
+      </div>
+      <button>Remove</button>
+    `;
+    row.querySelector('button').addEventListener('click', async () => {
+      baselines = baselines.filter(x => !(x.name === b.name && x.algo === b.algo));
+      await persistBaselines();
+      renderBaselines();
+    });
+    baselineListEl.appendChild(row);
+  });
+}
+
+/* ---- lock / export / import ---- */
+document.getElementById('lockBtn').addEventListener('click', () => {
+  sessionKey = null;
+  baselines = [];
+  appEl.style.display = 'none';
+  lockScreen.style.display = 'block';
+  initLockScreen();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const rec = readVaultRecord();
+  const blob = new Blob([JSON.stringify(rec)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'file-hash-vault-backup.json';
+  a.click();
+});
+
+document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const text = await file.text();
+  try{
+    const rec = JSON.parse(text);
+    if(!rec.salt || !rec.iv || !rec.data) throw new Error('bad file');
+    if(!confirm('Import this backup? It will replace the vault currently stored on this device.')) return;
+    writeVaultRecord(rec);
+    sessionKey = null;
+    baselines = [];
+    appEl.style.display = 'none';
+    lockScreen.style.display = 'block';
+    initLockScreen();
+  }catch(err){
+    alert('That file does not look like a valid vault backup.');
+  }
+});
+</script>
+</body>
+</html>
