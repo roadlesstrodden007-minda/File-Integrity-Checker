@@ -1,5 +1,7 @@
 # File Integrity Checker
 
+View Site: https://roadlesstrodden007-minda.github.io/File-Integrity-Checker/
+
 A lightweight, offline-first tool for hashing files and detecting changes over time. Everything runs in the browser — no install, no server, no accounts. Saved records are encrypted locally, so only you can read them.
 
 Built by Roadlesstrodden.
