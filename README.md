@@ -49,6 +49,10 @@ GitHub Pages just serves the static file — no backend is involved, and hashing
 - Encryption protects the *stored data* from casual tampering or inspection — it does not protect against someone who already knows your password, or against malware with full access to an unlocked session.
 - Avoid MD5 or SHA-1 for anything security-sensitive; they're included for compatibility, but SHA-256 or SHA-512 are recommended for integrity checks that matter.
 
+## Disclaimer
+
+This tool is provided as-is, with no warranty of any kind. It's intended as a general-purpose aid for detecting accidental or unauthorized file changes — not as a certified forensic, legal, or compliance tool. The author is not responsible for data loss, forgotten passwords, or any consequences of relying on this tool for security-critical decisions. Use at your own risk, and verify independently before relying on it for anything sensitive.
+
 ## License
 
 MIT — see LICENSE. Reuse and modification are welcome; the license asks that the "Built by Roadlesstrodden" attribution stay intact in any copy or derivative.
