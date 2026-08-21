@@ -49,4 +49,4 @@ GitHub Pages just serves the static file — no backend is involved, and hashing
 
 ## License
 
-MIT — see [LICENSE.txt](LICENSE.txt). Reuse and modification are welcome; the license asks that the "Built by Roadlesstrodden" attribution stay intact in any copy or derivative.
+MIT — see LICENSE. Reuse and modification are welcome; the license asks that the "Built by Roadlesstrodden" attribution stay intact in any copy or derivative.
