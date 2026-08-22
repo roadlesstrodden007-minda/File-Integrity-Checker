@@ -55,4 +55,4 @@ This tool is provided as-is, with no warranty of any kind. It's intended as a ge
 
 ## License
 
-MIT — see LICENSE. Reuse and modification are welcome; the license asks that the "Built by Roadlesstrodden" attribution stay intact in any copy or derivative.
+MIT — see LICENSE. Reuse and modification are welcome; the license asks that the "Built with Claude Idea by Roadlesstrodden" attribution stay intact in any copy or derivative.
